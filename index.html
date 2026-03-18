@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>搞钱天赋测试 - 发现你的财富密码</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans antialiased min-h-screen flex flex-col items-center justify-center p-4">
+    <div id="app" class="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden relative transition-all duration-500 min-h-[600px] flex flex-col">
+        
+        <!-- Start Screen -->
+        <div id="start-screen" class="absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-indigo-50 via-white to-purple-50 z-20">
+            <div class="w-24 h-24 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-3xl shadow-lg flex items-center justify-center mb-8 rotate-12 transform hover:rotate-0 transition-all duration-300">
+                <i data-lucide="gem" class="w-12 h-12 text-white"></i>
+            </div>
+            <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-4 text-center">搞钱天赋深度测试</h1>
+            <p class="text-gray-500 text-center mb-8 max-w-md">50道精选专业测试题，全方位解析你的财富基因。找出最适合你的赚钱路径，拒绝盲目努力。</p>
+            <button id="start-btn" class="px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold rounded-2xl shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 flex items-center gap-2">
+                开始测试 <i data-lucide="arrow-right" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- Question Screen -->
+        <div id="question-screen" class="hidden flex-col h-full absolute inset-0 bg-white z-10">
+            <div class="h-2 w-full bg-gray-100">
+                <div id="progress-bar" class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 w-0 transition-all duration-300"></div>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-8 flex flex-col">
+                <div class="flex items-center justify-between mb-8">
+                    <span class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Question <span id="current-q-num">1</span>/50</span>
+                    <div class="px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-sm font-medium">搞钱基因解析中</div>
+                </div>
+                
+                <h2 id="question-text" class="text-2xl font-bold text-gray-800 mb-8 leading-relaxed"></h2>
+                
+                <div id="options-container" class="space-y-4 flex-1">
+                    <!-- Options injected here -->
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <button id="prev-btn" class="px-6 py-3 text-gray-500 hover:text-indigo-600 font-medium rounded-xl hover:bg-white hover:shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i> 上一题
+                </button>
+                <button id="next-btn" class="px-6 py-3 bg-gray-900 text-white font-medium rounded-xl hover:bg-gray-800 shadow-md transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                    下一题 <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="result-screen" class="hidden flex-col h-full absolute inset-0 bg-gray-50 z-30 overflow-y-auto">
+            <div class="p-8 pb-32">
+                <div class="text-center mb-10 mt-6">
+                    <p class="text-sm font-bold tracking-widest text-indigo-500 uppercase mb-2">测试完成</p>
+                    <h2 class="text-3xl font-extrabold text-gray-900 mb-2">你的核心搞钱天赋是</h2>
+                    <h1 id="result-title" class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 py-2"></h1>
+                </div>
+
+                <div class="bg-white rounded-3xl p-6 shadow-xl shadow-indigo-100/50 mb-8">
+                    <div class="aspect-square max-w-xs mx-auto mb-6">
+                        <canvas id="radar-chart"></canvas>
+                    </div>
+                    <p id="result-desc" class="text-gray-600 leading-relaxed text-center"></p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-gradient-to-br from-green-50 to-emerald-50 rounded-3xl p-6 border border-green-100">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center text-green-600">
+                                <i data-lucide="check-circle" class="w-5 h-5"></i>
+                            </div>
+                            <h3 class="font-bold text-gray-800">搞钱优势</h3>
+                        </div>
+                        <ul id="result-pros" class="space-y-2 text-sm text-gray-600"></ul>
+                    </div>
+                    <div class="bg-gradient-to-br from-red-50 to-orange-50 rounded-3xl p-6 border border-red-100">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center text-red-600">
+                                <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+                            </div>
+                            <h3 class="font-bold text-gray-800">避坑指南</h3>
+                        </div>
+                        <ul id="result-cons" class="space-y-2 text-sm text-gray-600"></ul>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl p-8 text-white shadow-lg">
+                    <h3 class="text-xl font-bold mb-4 flex items-center gap-2">
+                        <i data-lucide="rocket" class="w-6 h-6"></i> 最佳变现路径推荐
+                    </h3>
+                    <div id="result-paths" class="grid grid-cols-1 gap-4">
+                        <!-- Paths injected here -->
+                    </div>
+                </div>
+                
+                <div class="mt-12 text-center">
+                    <button id="restart-btn" class="px-6 py-3 bg-white text-gray-800 font-bold rounded-xl shadow-md hover:shadow-lg transition-all border border-gray-200">
+                        重新测试
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
