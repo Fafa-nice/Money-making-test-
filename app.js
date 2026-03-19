@@ -1,200 +1,147 @@
-import { questions, resultsData } from './data.js';
+import { questions, archetypes } from './data.js';
 
-lucide.createIcons();
+let currentQuestionIndex = 0;
+let answers = new Array(questions.length).fill(null);
 
 const els = {
-    startScreen: document.getElementById('start-screen'),
-    questionScreen: document.getElementById('question-screen'),
+    homeScreen: document.getElementById('home-screen'),
+    quizScreen: document.getElementById('quiz-screen'),
     resultScreen: document.getElementById('result-screen'),
     startBtn: document.getElementById('start-btn'),
     prevBtn: document.getElementById('prev-btn'),
     nextBtn: document.getElementById('next-btn'),
     restartBtn: document.getElementById('restart-btn'),
-    questionText: document.getElementById('question-text'),
-    optionsContainer: document.getElementById('options-container'),
-    currentQNum: document.getElementById('current-q-num'),
+    progressText: document.getElementById('progress-text'),
     progressBar: document.getElementById('progress-bar'),
-    resultTitle: document.getElementById('result-title'),
-    resultDesc: document.getElementById('result-desc'),
-    resultPros: document.getElementById('result-pros'),
-    resultCons: document.getElementById('result-cons'),
-    resultPaths: document.getElementById('result-paths')
+    questionText: document.getElementById('question-text'),
+    optionsContainer: document.getElementById('options-container')
 };
 
-let currentQIndex = 0;
-const answers = new Array(questions.length).fill(null);
-let radarChartInstance = null;
-
-const init = () => {
-    els.startBtn.addEventListener('click', startTest);
+function init() {
+    lucide.createIcons();
+    
+    els.startBtn.addEventListener('click', startQuiz);
     els.prevBtn.addEventListener('click', prevQuestion);
     els.nextBtn.addEventListener('click', nextQuestion);
-    els.restartBtn.addEventListener('click', restartTest);
-};
+    els.restartBtn.addEventListener('click', resetQuiz);
+}
 
-const switchScreen = (hideEl, showEl) => {
-    hideEl.classList.add('fade-out');
-    setTimeout(() => {
-        hideEl.classList.add('hidden');
-        hideEl.classList.remove('fade-out');
-        showEl.classList.remove('hidden');
-        showEl.classList.add('fade-in');
-    }, 300);
-};
-
-const startTest = () => {
-    switchScreen(els.startScreen, els.questionScreen);
+function startQuiz() {
+    els.homeScreen.classList.add('hidden');
+    els.quizScreen.classList.remove('hidden');
     renderQuestion();
-};
+}
 
-const renderQuestion = () => {
-    const q = questions[currentQIndex];
-    els.currentQNum.textContent = q.id;
-    els.questionText.textContent = q.text;
-    els.progressBar.style.width = `${((currentQIndex) / questions.length) * 100}%`;
+function renderQuestion() {
+    const q = questions[currentQuestionIndex];
+    els.progressText.innerText = `${currentQuestionIndex + 1} / ${questions.length}`;
+    els.progressBar.style.width = `${((currentQuestionIndex + 1) / questions.length) * 100}%`;
     
+    els.questionText.innerText = q.question;
     els.optionsContainer.innerHTML = '';
     
     q.options.forEach((opt, index) => {
         const btn = document.createElement('button');
-        btn.className = `option-btn w-full text-left p-5 rounded-2xl border-2 border-gray-100 bg-white hover:border-indigo-300 hover:bg-indigo-50/30 transition-all duration-300 text-gray-700 font-medium flex items-center gap-4 group ${answers[currentQIndex] === index ? 'option-selected' : ''}`;
-        
-        const letter = String.fromCharCode(65 + index);
-        const iconBg = answers[currentQIndex] === index ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-indigo-100 group-hover:text-indigo-600';
-        
-        btn.innerHTML = `
-            <div class="w-8 h-8 rounded-full ${iconBg} flex items-center justify-center font-bold text-sm transition-colors">
-                ${letter}
-            </div>
-            <span class="flex-1">${opt.text}</span>
-        `;
-        
-        btn.onclick = () => selectOption(index);
+        btn.className = `option-btn w-full text-left p-4 rounded-xl border-2 border-gray-100 bg-white shadow-sm font-medium text-gray-700 hover:border-indigo-300 ${answers[currentQuestionIndex] === opt.type ? 'selected' : ''}`;
+        btn.innerText = opt.text;
+        btn.onclick = () => selectOption(opt.type);
         els.optionsContainer.appendChild(btn);
     });
 
-    els.prevBtn.disabled = currentQIndex === 0;
-    els.nextBtn.disabled = answers[currentQIndex] === null;
+    updateNavButtons();
+}
+
+function selectOption(type) {
+    answers[currentQuestionIndex] = type;
+    renderQuestion();
     
-    if (currentQIndex === questions.length - 1) {
-        els.nextBtn.innerHTML = '生成报告 <i data-lucide="sparkles" class="w-4 h-4"></i>';
+
+    if (currentQuestionIndex < questions.length - 1) {
+        setTimeout(nextQuestion, 300);
+    } else {
+        updateNavButtons();
+    }
+}
+
+function updateNavButtons() {
+    els.prevBtn.disabled = currentQuestionIndex === 0;
+    
+    if (currentQuestionIndex === questions.length - 1) {
+        els.nextBtn.innerText = '查看结果';
+        els.nextBtn.disabled = answers[currentQuestionIndex] === null;
     } else {
         els.nextBtn.innerHTML = '下一题 <i data-lucide="arrow-right" class="w-4 h-4"></i>';
+        els.nextBtn.disabled = answers[currentQuestionIndex] === null;
     }
     lucide.createIcons();
-    
-    els.optionsContainer.classList.remove('slide-up');
-    void els.optionsContainer.offsetWidth;
-    els.optionsContainer.classList.add('slide-up');
-};
+}
 
-const selectOption = (index) => {
-    answers[currentQIndex] = index;
-    renderQuestion();
-    setTimeout(() => {
-        if (currentQIndex < questions.length - 1) {
-            nextQuestion();
-        } else {
-            els.nextBtn.disabled = false;
-        }
-    }, 300);
-};
-
-const prevQuestion = () => {
-    if (currentQIndex > 0) {
-        currentQIndex--;
+function prevQuestion() {
+    if (currentQuestionIndex > 0) {
+        currentQuestionIndex--;
         renderQuestion();
     }
-};
+}
 
-const nextQuestion = () => {
-    if (currentQIndex < questions.length - 1) {
-        currentQIndex++;
+function nextQuestion() {
+    if (answers[currentQuestionIndex] === null) return;
+    
+    if (currentQuestionIndex < questions.length - 1) {
+        currentQuestionIndex++;
         renderQuestion();
     } else {
-        generateResult();
+        showResult();
     }
-};
+}
 
-const generateResult = () => {
-    const scores = { risk: 0, exec: 0, innov: 0, social: 0 };
+function showResult() {
+    els.quizScreen.classList.add('hidden');
+    els.resultScreen.classList.remove('hidden');
     
-    answers.forEach((ansIndex, qIndex) => {
-        if (ansIndex !== null) {
-            const opt = questions[qIndex].options[ansIndex];
-            scores.risk += opt.scores.risk;
-            scores.exec += opt.scores.exec;
-            scores.innov += opt.scores.innov;
-            scores.social += opt.scores.social;
+    const counts = { A: 0, B: 0, C: 0, D: 0 };
+    answers.forEach(ans => { if(ans) counts[ans]++ });
+    
+    let topType = 'A';
+    let max = 0;
+    for (const [type, count] of Object.entries(counts)) {
+        if (count > max) {
+            max = count;
+            topType = type;
         }
-    });
-
-    const maxTrait = Object.keys(scores).reduce((a, b) => scores[a] > scores[b] ? a : b);
-    const result = resultsData[maxTrait];
-
-    els.resultTitle.textContent = result.title;
-    els.resultDesc.textContent = result.desc;
-    
-    els.resultPros.innerHTML = result.pros.map(p => `<li class="flex items-start gap-2"><span class="w-1.5 h-1.5 rounded-full bg-green-500 mt-2 shrink-0"></span><span>${p}</span></li>`).join('');
-    els.resultCons.innerHTML = result.cons.map(c => `<li class="flex items-start gap-2"><span class="w-1.5 h-1.5 rounded-full bg-red-500 mt-2 shrink-0"></span><span>${c}</span></li>`).join('');
-    
-    els.resultPaths.innerHTML = result.paths.map(p => `
-        <div class="bg-white/10 rounded-xl p-4 backdrop-blur-sm border border-white/20">
-            <h4 class="font-bold text-white mb-1">${p.name}</h4>
-            <p class="text-indigo-100 text-sm">${p.desc}</p>
-        </div>
-    `).join('');
-
-    switchScreen(els.questionScreen, els.resultScreen);
-    renderChart(scores);
-};
-
-const renderChart = (scores) => {
-    const ctx = document.getElementById('radar-chart').getContext('2d');
-    
-    if (radarChartInstance) {
-        radarChartInstance.destroy();
     }
-
-    radarChartInstance = new Chart(ctx, {
-        type: 'radar',
-        data: {
-            labels:['风险偏好', '执行毅力', '创新洞察', '资源整合'],
-            datasets: [{
-                label: '能力维度',
-                data:[scores.risk, scores.exec, scores.innov, scores.social],
-                backgroundColor: 'rgba(99, 102, 241, 0.2)',
-                borderColor: 'rgba(99, 102, 241, 1)',
-                pointBackgroundColor: 'rgba(168, 85, 247, 1)',
-                pointBorderColor: '#fff',
-                pointHoverBackgroundColor: '#fff',
-                pointHoverBorderColor: 'rgba(168, 85, 247, 1)',
-                borderWidth: 2,
-            }]
-        },
-        options: {
-            scales: {
-                r: {
-                    angleLines: { color: 'rgba(0, 0, 0, 0.05)' },
-                    grid: { color: 'rgba(0, 0, 0, 0.05)' },
-                    pointLabels: {
-                        font: { family: "'Inter', sans-serif", size: 12, weight: 'bold' },
-                        color: '#4b5563'
-                    },
-                    ticks: { display: false, beginAtZero: true }
-                }
-            },
-            plugins: {
-                legend: { display: false }
-            }
-        }
+    
+    const result = archetypes[topType];
+    
+    document.getElementById('result-title').innerText = result.title;
+    document.getElementById('result-subtitle').innerText = result.subtitle;
+    document.getElementById('result-desc').innerText = result.desc;
+    
+    const prosContainer = document.getElementById('result-pros');
+    prosContainer.innerHTML = '';
+    result.pros.forEach(pro => {
+        const li = document.createElement('li');
+        li.innerText = pro;
+        prosContainer.appendChild(li);
     });
-};
+    
+    const careersContainer = document.getElementById('result-careers');
+    careersContainer.innerHTML = '';
+    result.careers.forEach(career => {
+        const span = document.createElement('span');
+        span.className = 'px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold';
+        span.innerText = career;
+        careersContainer.appendChild(span);
+    });
+    
+    els.resultScreen.classList.add('fade-in');
+    document.querySelector('#result-screen > div:nth-child(2)').classList.add('slide-up');
+}
 
-const restartTest = () => {
-    currentQIndex = 0;
-    answers.fill(null);
-    switchScreen(els.resultScreen, els.startScreen);
-};
+function resetQuiz() {
+    currentQuestionIndex = 0;
+    answers = new Array(questions.length).fill(null);
+    els.resultScreen.classList.add('hidden');
+    els.homeScreen.classList.remove('hidden');
+}
 
-init();
+document.addEventListener('DOMContentLoaded', init);
