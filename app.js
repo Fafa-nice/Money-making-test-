@@ -1,147 +1,164 @@
-import { questions, archetypes } from './data.js';
+import { questions, profiles } from './data.js';
 
 let currentQuestionIndex = 0;
-let answers = new Array(questions.length).fill(null);
+let answers = {};
+let traitsScore = { risk: 0, innovation: 0, execution: 0, social: 0, analysis: 0 };
 
-const els = {
-    homeScreen: document.getElementById('home-screen'),
-    quizScreen: document.getElementById('quiz-screen'),
-    resultScreen: document.getElementById('result-screen'),
-    startBtn: document.getElementById('start-btn'),
-    prevBtn: document.getElementById('prev-btn'),
-    nextBtn: document.getElementById('next-btn'),
-    restartBtn: document.getElementById('restart-btn'),
-    progressText: document.getElementById('progress-text'),
-    progressBar: document.getElementById('progress-bar'),
-    questionText: document.getElementById('question-text'),
-    optionsContainer: document.getElementById('options-container')
-};
-
-function init() {
+document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
-    
-    els.startBtn.addEventListener('click', startQuiz);
-    els.prevBtn.addEventListener('click', prevQuestion);
-    els.nextBtn.addEventListener('click', nextQuestion);
-    els.restartBtn.addEventListener('click', resetQuiz);
+    initApp();
+});
+
+function initApp() {
+    document.getElementById('btn-start').addEventListener('click', () => {
+        switchScreen('screen-question');
+        renderQuestion();
+    });
+
+    document.getElementById('btn-prev').addEventListener('click', () => {
+        if (currentQuestionIndex > 0) {
+            currentQuestionIndex--;
+            renderQuestion();
+        }
+    });
 }
 
-function startQuiz() {
-    els.homeScreen.classList.add('hidden');
-    els.quizScreen.classList.remove('hidden');
-    renderQuestion();
+function switchScreen(screenId) {
+    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+    document.getElementById(screenId).classList.add('active');
 }
 
 function renderQuestion() {
     const q = questions[currentQuestionIndex];
-    els.progressText.innerText = `${currentQuestionIndex + 1} / ${questions.length}`;
-    els.progressBar.style.width = `${((currentQuestionIndex + 1) / questions.length) * 100}%`;
+    document.getElementById('question-counter').innerText = `${currentQuestionIndex + 1}/${questions.length}`;
+    document.getElementById('question-text').innerText = q.text;
     
-    els.questionText.innerText = q.question;
-    els.optionsContainer.innerHTML = '';
+    const progress = ((currentQuestionIndex) / questions.length) * 100;
+    document.getElementById('progress-bar').style.width = `${progress}%`;
     
-    q.options.forEach((opt, index) => {
+    document.getElementById('btn-prev').disabled = currentQuestionIndex === 0;
+
+    const optionsContainer = document.getElementById('options-container');
+    optionsContainer.innerHTML = '';
+
+    q.options.forEach((opt, idx) => {
         const btn = document.createElement('button');
-        btn.className = `option-btn w-full text-left p-4 rounded-xl border-2 border-gray-100 bg-white shadow-sm font-medium text-gray-700 hover:border-indigo-300 ${answers[currentQuestionIndex] === opt.type ? 'selected' : ''}`;
+        btn.className = `option-btn ${answers[q.id] === idx ? 'selected' : ''}`;
         btn.innerText = opt.text;
-        btn.onclick = () => selectOption(opt.type);
-        els.optionsContainer.appendChild(btn);
+        btn.onclick = () => selectOption(q.id, idx, opt.trait, opt.value);
+        optionsContainer.appendChild(btn);
+    });
+}
+
+function selectOption(qId, optIdx, trait,
+value) {
+    const optionsContainer = document.getElementById('options-container');
+    const buttons = optionsContainer.querySelectorAll('button');
+    buttons.forEach((btn, idx) => {
+        if (idx === optIdx) {
+            btn.classList.add('selected');
+        } else {
+            btn.classList.remove('selected');
+        }
     });
 
-    updateNavButtons();
+    answers[qId] = { idx: optIdx, trait: trait, value: value };
+
+    setTimeout(() => {
+        if (currentQuestionIndex < questions.length - 1) {
+            currentQuestionIndex++;
+            renderQuestion();
+        } else {
+            finishTest();
+        }
+    }, 250);
 }
 
-function selectOption(type) {
-    answers[currentQuestionIndex] = type;
-    renderQuestion();
+function finishTest() {
+    switchScreen('screen-loading');
     
-
-    if (currentQuestionIndex < questions.length - 1) {
-        setTimeout(nextQuestion, 300);
-    } else {
-        updateNavButtons();
-    }
+    setTimeout(() => {
+        calculateAndRenderResult();
+    }, 2000);
 }
 
-function updateNavButtons() {
-    els.prevBtn.disabled = currentQuestionIndex === 0;
+function calculateAndRenderResult() {
+    let scores = { risk: 0, innovation: 0, execution: 0, social: 0, analysis: 0 };
     
-    if (currentQuestionIndex === questions.length - 1) {
-        els.nextBtn.innerText = '查看结果';
-        els.nextBtn.disabled = answers[currentQuestionIndex] === null;
-    } else {
-        els.nextBtn.innerHTML = '下一题 <i data-lucide="arrow-right" class="w-4 h-4"></i>';
-        els.nextBtn.disabled = answers[currentQuestionIndex] === null;
-    }
-    lucide.createIcons();
-}
+    Object.values(answers).forEach(ans => {
+        if (scores[ans.trait] !== undefined) {
+            scores[ans.trait] += ans.value;
+        }
+    });
 
-function prevQuestion() {
-    if (currentQuestionIndex > 0) {
-        currentQuestionIndex--;
-        renderQuestion();
-    }
-}
+    let maxTrait = 'execution';
+    let maxScore = -1;
 
-function nextQuestion() {
-    if (answers[currentQuestionIndex] === null) return;
-    
-    if (currentQuestionIndex < questions.length - 1) {
-        currentQuestionIndex++;
-        renderQuestion();
-    } else {
-        showResult();
-    }
-}
-
-function showResult() {
-    els.quizScreen.classList.add('hidden');
-    els.resultScreen.classList.remove('hidden');
-    
-    const counts = { A: 0, B: 0, C: 0, D: 0 };
-    answers.forEach(ans => { if(ans) counts[ans]++ });
-    
-    let topType = 'A';
-    let max = 0;
-    for (const [type, count] of Object.entries(counts)) {
-        if (count > max) {
-            max = count;
-            topType = type;
+    for (const [t, s] of Object.entries(scores)) {
+        if (s > maxScore) {
+            maxScore = s;
+            maxTrait = t;
         }
     }
-    
-    const result = archetypes[topType];
-    
-    document.getElementById('result-title').innerText = result.title;
-    document.getElementById('result-subtitle').innerText = result.subtitle;
-    document.getElementById('result-desc').innerText = result.desc;
-    
-    const prosContainer = document.getElementById('result-pros');
-    prosContainer.innerHTML = '';
-    result.pros.forEach(pro => {
+
+    const profile = profiles[maxTrait] || profiles['execution'];
+
+    document.getElementById('result-title').innerText = profile.title;
+    document.getElementById('result-subtitle').innerText = profile.subtitle;
+    document.getElementById('result-desc').innerText = profile.desc;
+
+    const recsContainer = document.getElementById('result-recs');
+    recsContainer.innerHTML = '';
+    profile.recs.forEach(rec => {
         const li = document.createElement('li');
-        li.innerText = pro;
-        prosContainer.appendChild(li);
+        li.className = 'flex items-center text-sm font-medium text-gray-700 bg-gray-50 p-3 rounded-xl border border-gray-100';
+        li.innerHTML = `<i data-lucide="check-circle-2" class="w-5 h-5 text-green-500 mr-3"></i>${rec}`;
+        recsContainer.appendChild(li);
     });
+
+    lucide.createIcons();
     
-    const careersContainer = document.getElementById('result-careers');
-    careersContainer.innerHTML = '';
-    result.careers.forEach(career => {
-        const span = document.createElement('span');
-        span.className = 'px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold';
-        span.innerText = career;
-        careersContainer.appendChild(span);
-    });
-    
-    els.resultScreen.classList.add('fade-in');
-    document.querySelector('#result-screen > div:nth-child(2)').classList.add('slide-up');
+    document.getElementById('progress-bar').style.width = '100%';
+    switchScreen('screen-result');
+    renderChart(scores);
 }
 
-function resetQuiz() {
-    currentQuestionIndex = 0;
-    answers = new Array(questions.length).fill(null);
-    els.resultScreen.classList.add('hidden');
-    els.homeScreen.classList.remove('hidden');
+function renderChart(scores) {
+    const ctx = document.getElementById('radarChart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: ['风险博弈', '创新思维', '执行落地', '资源整合', '逻辑分析'],
+            datasets: [{
+                label: '能力维度',
+                data: [scores.risk, scores.innovation, scores.execution, scores.social, scores.analysis],
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                borderColor: 'rgba(255, 255, 255, 0.9)',
+                pointBackgroundColor: '#ffffff',
+                pointBorderColor: '#ffffff',
+                pointHoverBackgroundColor: '#ffffff',
+                pointHoverBorderColor: 'rgba(255, 255, 255, 1)',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            scales: {
+                r: {
+                    angleLines: { color: 'rgba(255, 255, 255, 0.2)' },
+                    grid: { color: 'rgba(255, 255, 255, 0.2)' },
+                    pointLabels: { 
+                        color: 'rgba(255, 255, 255, 0.9)', 
+                        font: { size: 12, family: 'Inter', weight: '500' } 
+                    },
+                    ticks: { display: false }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false }
+            },
+            maintainAspectRatio: false
+        }
+    });
 }
-
-document.addEventListener('DOMContentLoaded', init);
